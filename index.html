@@ -921,6 +921,40 @@ footer {
 .fai-send:hover { background:var(--gold2); }
 .fai-send:disabled { opacity:.4; }
 
+/* Suggestion chips */
+.fai-suggestions {
+  display:flex; flex-wrap:wrap; gap:6px;
+  align-self:flex-start; max-width:100%;
+  margin-top:4px;
+}
+.fai-suggest-btn {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:100px; padding:5px 11px;
+  font-family:var(--ff-mono); font-size:.62rem; color:var(--gold2);
+  cursor:pointer; transition:all .18s; white-space:nowrap;
+  letter-spacing:.03em;
+}
+.fai-suggest-btn:hover {
+  background:rgba(201,168,76,.12); border-color:var(--gold);
+  color:var(--gold); transform:translateY(-1px);
+}
+
+/* Notification dot on AI button */
+#faiNotif {
+  position:absolute; top:-2px; right:-2px;
+  width:16px; height:16px; border-radius:50%;
+  background:#22c55e; border:2px solid var(--bg);
+  display:none; align-items:center; justify-content:center;
+  font-size:.5rem; color:#fff; font-weight:700;
+  animation:pulse 1.5s ease-in-out infinite;
+}
+
+/* Mobile responsive for chat */
+@media(max-width:640px){
+  #floatAIPanel{ width:calc(100vw - 40px); right:0; }
+  #floatAI{ right:16px; bottom:16px; }
+}
+
 /* ─────── RESPONSIVE ─────── */
 @media(max-width:1024px){
   .wrap{padding:0 32px}
@@ -1663,7 +1697,9 @@ footer {
       <button class="fai-close" onclick="toggleFloatAI()" aria-label="Close">✕</button>
     </div>
     <div id="faiMsgs">
-      <div class="fai-bot">👋 Hi! I'm Anirban's AI. Ask me about his skills, projects, or how to hire him!</div>
+      <div class="fai-bot" style="white-space:pre-line">👋 Hi! I'm Anirban's Portfolio AI — always online, always ready!
+
+Ask me anything about his skills, projects, education, or hiring availability. No network needed — I reply instantly! ⚡</div>
     </div>
     <div class="fai-bottom">
       <textarea class="fai-inp" id="faiInp" placeholder="Ask about skills, projects…" rows="1"></textarea>
@@ -1675,6 +1711,7 @@ footer {
   <button id="floatAIBtn" onclick="toggleFloatAI()" aria-label="Open AI Chat">
     <span id="floatAIBtnIcon">✦</span>
     <span class="float-ai-tooltip">May I help you?</span>
+    <span id="faiNotif">1</span>
   </button>
 </div>
 
@@ -1966,51 +2003,29 @@ function submitForm(){
   ['fn','fe','fs','fm'].forEach(id=>document.getElementById(id).value='');
 }
 
-/* ── AI Chat ── */
-const SYS = `You are a professional portfolio AI assistant for Anirban Mahanta, an aspiring Data Analyst from Kolkata, India.
-
-PROFILE: Anirban specializes in Power BI (DAX, Power Query, RLS, Service), Tableau (LOD, choropleth, storytelling, Tableau Public), Advanced Excel (Pivot Tables, XLOOKUP, Power Query, conditional formatting, VBA), SQL (MySQL, PostgreSQL, BigQuery, CTEs, window functions), Python (Pandas, NumPy, Matplotlib, Seaborn, Scikit-learn, Plotly, Streamlit), Machine Learning (XGBoost, regression, classification, clustering, SHAP).
-
-PROJECTS: (1) Sales Dashboard & Forecasting — Power BI + Python + SQL, 92% forecast accuracy. (2) Customer Churn Prediction — XGBoost + Streamlit, 88% recall. (3) IPL Cricket Analytics — Tableau + Python + Selenium, 12 seasons. (4) COVID-19 India Data Story — Tableau choropleth, Tableau Public. (5) Retail Chain SQL BI — PostgreSQL + Tableau. (6) HR Analytics Dashboard — Excel + Power BI.
-
-EDUCATION: B.Sc. Statistics Honours, University of Calcutta (2022, First Class). Google Data Analytics Professional Certificate (2023). Microsoft Power BI PL-300 (In Progress). Python ML Bootcamp — Udemy (2022).
-
-CONTACT: anirbanmahanta.2008@gmail.com | LinkedIn: linkedin.com/in/anirbanmahanta | GitHub: github.com/anirbanmahanta
-
-Be concise, professional, and helpful. For anything not in this profile, suggest contacting Anirban directly.`;
-
-const chatHistory=[];
-async function sendAI(){
-  const inp=document.getElementById('aiInp');
-  const btn=document.getElementById('aiSend');
-  const txt=inp.value.trim();
-  if(!txt) return;
-  appendAI(txt,'usr');
-  inp.value=''; btn.disabled=true;
-  const loading=appendAI('Thinking…','bot typ');
-  chatHistory.push({role:'user',content:txt});
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:chatHistory})
-    });
-    const data=await res.json();
-    const reply=data.content?.[0]?.text||"Sorry, I couldn't get a response. Please try again.";
-    loading.textContent=reply; loading.className='amsg bot';
-    chatHistory.push({role:'assistant',content:reply});
-  }catch{
-    loading.textContent="Network error. Please try again."; loading.className='amsg bot';
-  }
-  btn.disabled=false;
-  document.getElementById('aiMsgs').scrollTop=99999;
-}
+/* ── AI Chat (main section — uses same local engine) ── */
 function appendAI(txt,cls){
   const box=document.getElementById('aiMsgs');
   const el=document.createElement('div');
-  el.className='amsg '+cls; el.textContent=txt;
+  el.className='amsg '+cls;
+  el.style.whiteSpace='pre-line';
+  el.textContent=txt;
   box.appendChild(el); box.scrollTop=99999;
   return el;
+}
+function sendAI(){
+  const inp=document.getElementById('aiInp');
+  const txt=inp.value.trim();
+  if(!txt) return;
+  inp.value='';
+  appendAI(txt,'usr');
+  const loading=appendAI('thinking…','bot typ');
+  setTimeout(()=>{
+    loading.remove();
+    const reply=getAIReply(txt);
+    appendAI(reply,'bot');
+    document.getElementById('aiMsgs').scrollTop=99999;
+  }, 600 + Math.random()*400);
 }
 document.getElementById('aiInp').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI();}
@@ -2029,58 +2044,252 @@ const schema={
 };
 const s=document.createElement('script');s.type='application/ld+json';s.textContent=JSON.stringify(schema);document.head.appendChild(s);
 
-/* ── Floating AI Panel ── */
+/* ════════════════════════════════════════════
+   FLOATING AI CHATBOT — 100% LOCAL, ZERO API
+   Smart regex engine · Always responsive
+════════════════════════════════════════════ */
 let faiOpen = false;
-const FAI_SYS = `You are a professional portfolio AI assistant for Anirban Mahanta, an aspiring Data Analyst from Kolkata, India.
-PROFILE: Anirban specializes in Power BI (DAX, Power Query, RLS, Service), Tableau (LOD, choropleth, storytelling, Tableau Public), Advanced Excel (Pivot Tables, XLOOKUP, Power Query, conditional formatting, VBA), SQL (MySQL, PostgreSQL, BigQuery, CTEs, window functions), Python (Pandas, NumPy, Matplotlib, Seaborn, Scikit-learn, Plotly, Streamlit), Machine Learning (XGBoost, regression, classification, clustering, SHAP).
-PROJECTS: (1) Sales Dashboard & Forecasting — Power BI + Python + SQL, 92% forecast accuracy. (2) Customer Churn Prediction — XGBoost + Streamlit, 88% recall. (3) IPL Cricket Analytics — Tableau + Python + Selenium, 12 seasons. (4) COVID-19 India Data Story — Tableau choropleth, Tableau Public. (5) Retail Chain SQL BI — PostgreSQL + Tableau. (6) HR Analytics Dashboard — Excel + Power BI.
-EDUCATION: B.Sc. Statistics Honours, University of Calcutta (2022, First Class). Google Data Analytics Professional Certificate (2023). Microsoft Power BI PL-300 (In Progress). Python ML Bootcamp — Udemy (2022).
-CONTACT: anirbanmahanta.2008@gmail.com | LinkedIn: linkedin.com/in/anirbanmahanta | GitHub: github.com/anirbanmahanta
-Be concise, professional, warm and helpful. Max 2-3 sentences per response. For anything not in this profile, suggest contacting Anirban directly.`;
 
-const faiHistory=[];
+/* ── Knowledge Base ── */
+const KB = [
+
+  /* GREETINGS */
+  { p:/^(hi|hello|hey|good\s*(morning|afternoon|evening)|namaste|hii|helo|howdy|greetings)\b/i,
+    r:["👋 Hello! I'm Anirban's Portfolio AI. I can answer questions about his skills, projects, education, and availability. What would you like to know?",
+       "Hey there! 😊 Great to see you here. I'm ready to tell you all about Anirban Mahanta — his skills, projects, or how to hire him. Fire away!",
+       "Namaste! 🙏 Welcome to Anirban's portfolio assistant. Ask me anything — skills, projects, education, or availability!"] },
+
+  /* WHO IS ANIRBAN / ABOUT / INTRODUCE */
+  { p:/who\s*is\s*anirban|tell\s*me\s*about\s*anirban|about\s*anirban|about\s*him|who\s*is\s*he|introduce|tell\s*me\s*about\s*yourself|describe\s*anirban|who\s*are\s*you\s*talking\s*about/i,
+    r:["Anirban Mahanta is an aspiring Data Analyst from Kolkata, India 🇮🇳 — a passionate number-cruncher who transforms raw, messy data into clear, compelling business stories. He holds a B.Sc. Statistics Honours (First Class, University of Calcutta) and specialises in Power BI, Tableau, Advanced Excel, SQL, and Python. He has delivered 15+ real-world analytics projects and is currently open to full-time Data Analyst / BI Developer roles. 📊"] },
+
+  /* WHO ARE YOU (bot identity) */
+  { p:/who\s*are\s*you|what\s*are\s*you|are\s*you\s*(an?\s*)?(ai|bot|robot)|are\s*you\s*(real|human)|what\s*is\s*this/i,
+    r:["I'm Anirban's Portfolio AI 🤖 — a smart assistant built into this portfolio. I'm not a real human, but I know everything about Anirban's skills, projects, education, and availability. Ask me anything!"] },
+
+  /* STRENGTH / BEST SKILLS */
+  { p:/strength|best\s*skill|greatest\s*skill|speciali[sz]|what\s*(can|does)\s*he\s*(do|know)|core\s*(competenc|skill|abilit)|top\s*skill|key\s*skill|expertise|proficien/i,
+    r:["Anirban's core strengths are:\n⚡ Power BI — DAX, Power Query, RLS, Service deployment\n📊 Tableau — LOD expressions, choropleth maps, storytelling\n📋 Advanced Excel — Pivot Tables, XLOOKUP, VBA, Power Query\n🗄️ SQL — CTEs, window functions, MySQL & PostgreSQL\n🐍 Python — Pandas, NumPy, Matplotlib, Scikit-learn, Streamlit\n🤖 ML — XGBoost, classification, clustering, SHAP\n\nHis superpower is turning complex data into boardroom-ready dashboards that non-technical stakeholders can immediately understand and act on. 💡"] },
+
+  /* PROJECTS */
+  { p:/project|portfolio|work\s*sample|what\s*(has|did)\s*he\s*(built|done|made|creat|work)|show.*work|case\s*stud/i,
+    r:["Anirban has delivered 15+ analytics projects. Here are the highlights:\n\n1️⃣ Sales Dashboard & Forecasting — Power BI + Python + SQL · 92% forecast accuracy\n2️⃣ Customer Churn Prediction — XGBoost + Streamlit app · 88% recall score\n3️⃣ IPL Cricket Analytics — Tableau + Python + Selenium · 12 seasons of data\n4️⃣ COVID-19 India Data Story — Tableau choropleth · Published on Tableau Public\n5️⃣ Retail Chain SQL BI — PostgreSQL + Tableau · end-to-end BI pipeline\n6️⃣ HR Analytics Dashboard — Excel + Power BI · attrition & headcount insights\n\nAll projects demonstrate end-to-end ownership — from raw data to insight. 🚀"] },
+
+  /* EDUCATION / DEGREE / QUALIFICATION */
+  { p:/education|degree|college|universit|qualification|stud(y|ied)|b\.?sc|statistics|academic|school|graduation/i,
+    r:["Anirban's academic credentials:\n\n🎓 B.Sc. Statistics Honours — University of Calcutta (2019–2022) · First Class\n📜 Google Data Analytics Professional Certificate — Coursera (2023) · Verified\n⚡ Microsoft Power BI PL-300 — Microsoft Official Path (In Progress)\n🐍 Python for Data Science & ML Bootcamp — Udemy (2022) · Completed\n\nA strong statistics foundation combined with industry certifications makes him workplace-ready from day one. ✅"] },
+
+  /* EXPERIENCE / WORK HISTORY */
+  { p:/experience|work\s*(history|experience)|background|career|fresher|entry.?level|how\s*many\s*year|professional\s*journey|internship/i,
+    r:["Anirban is an entry-level Data Analyst with 3+ years of self-driven learning and project experience:\n\n📌 2024–Present: Freelance Data Analyst — built end-to-end dashboards & ML models for real business clients\n📌 2022–2024: Independent learning — 15+ projects across Power BI, Tableau, SQL, Python\n📌 2019–2022: B.Sc. Statistics Honours (First Class)\n\nWhile he may not have formal corporate employment yet, his project quality and delivery are equivalent to 1–2 years of industry experience. 💼"] },
+
+  /* POWER BI */
+  { p:/power\s*bi|powerbi|dax|power\s*query|pl.?300|report|dashboard/i,
+    r:["Anirban is highly proficient in Power BI (rated 88%+):\n\n✅ Data modelling — star schema, relationships, cardinality\n✅ DAX — calculated columns, measures, time intelligence, CALCULATE\n✅ Power Query — M language, ETL, data transformations\n✅ RLS — row-level security for enterprise reports\n✅ Power BI Service — publishing, workspaces, scheduled refresh\n✅ Paginated Reports — pixel-perfect formatted outputs\n\nHe's currently pursuing the Microsoft PL-300 certification. 🏆"] },
+
+  /* TABLEAU */
+  { p:/tableau|viz|visuali[sz]|choropleth|lod|tableau\s*public/i,
+    r:["Anirban's Tableau proficiency is rated 85%. He has:\n\n🗺️ Built choropleth maps (India COVID-19 state-wise dashboard — Tableau Public)\n📊 Used LOD expressions (FIXED, INCLUDE, EXCLUDE) for complex calculations\n🎬 Created animated trend charts and storytelling dashboards\n📈 Published on Tableau Public for global accessibility\n\nTableau is his go-to tool when the audience needs to explore data visually. 🎯"] },
+
+  /* PYTHON */
+  { p:/python|pandas|numpy|matplotlib|seaborn|scikit|sklearn|streamlit|plotly|ml|machine\s*learning|xgboost|predict|model/i,
+    r:["Anirban's Python stack (rated 80%):\n\n🐍 Pandas & NumPy — data wrangling, cleaning, aggregation\n📊 Matplotlib, Seaborn, Plotly — static and interactive charts\n🤖 Scikit-learn — regression, classification, clustering, pipelines\n⚡ XGBoost — ensemble boosting (88% recall on churn prediction!)\n🌐 Streamlit — deployed ML apps (live Customer Churn Predictor)\n📡 SHAP — model explainability & feature importance\n\nHis Python skills go beyond scripting — he builds complete analytics products. 🚀"] },
+
+  /* SQL */
+  { p:/sql|mysql|postgresql|bigquery|database|query|join|cte|window\s*function|stored\s*proc/i,
+    r:["Anirban's SQL proficiency is rated 82%. He works across:\n\n🗄️ MySQL & PostgreSQL — production databases\n☁️ Google BigQuery — cloud-scale analytics\n🔗 Complex JOINs — multi-table queries across 10+ tables\n🪟 Window Functions — RANK, ROW_NUMBER, LAG, LEAD, running totals\n📂 CTEs & Subqueries — readable, reusable query architecture\n⚙️ Stored Procedures & Indexing — performance optimisation\n\nHe built a complete Retail Chain BI pipeline using PostgreSQL + Tableau. 📦"] },
+
+  /* EXCEL */
+  { p:/excel|spreadsheet|pivot|xlookup|vlookup|vba|macro|conditional\s*format/i,
+    r:["Advanced Excel is one of Anirban's strongest tools (rated 90%!):\n\n📋 Pivot Tables & Pivot Charts — dynamic summaries with slicers\n🔍 XLOOKUP, INDEX-MATCH, OFFSET — advanced lookup formulas\n🎨 Conditional Formatting — heatmaps, data bars, icon sets\n⚙️ Power Query — automated data refresh & ETL\n🤖 VBA & Macros — workflow automation\n📊 Dashboard Design — executive-level single-page reports\n\nHe built a complete HR Analytics Dashboard purely in Excel + Power BI. 💼"] },
+
+  /* HIRING / RECRUITING / JOB OPENING */
+  { p:/hiring|we.*looking|open.*position|job\s*opening|vacancy|team.*need|recruiting|talent|candidate|interview|onboard|join.*team|consider.*for|available.*for\s*hire/i,
+    r:["Great news — Anirban is actively open to work! 🟢\n\nHe's looking for:\n💼 Data Analyst\n📊 Power BI Developer / BI Analyst\n📈 Business Intelligence Developer\n🔢 Reporting Analyst\n\nAvailability: Immediate\nLocation: Kolkata, India · Open to Remote & Hybrid globally\nNotice Period: None (Fresher)\n\nTo connect:\n📧 anirbanmahanta.2008@gmail.com\n💬 WhatsApp: +91 76996 13555\n💼 LinkedIn: linkedin.com/in/anirbanmahanta\n\nHe responds within 24 hours. ⚡"] },
+
+  /* SALARY / CTC / PACKAGE */
+  { p:/salary|ctc|package|compensation|pay|stipend|remuneration|expect.*salary|how\s*much/i,
+    r:["Anirban is open to discussing compensation based on the role, responsibilities, and company. He's focused on finding the right opportunity to contribute and grow — please reach out directly at anirbanmahanta.2008@gmail.com or WhatsApp +91 76996 13555 to discuss specifics. 💬"] },
+
+  /* AVAILABILITY / NOTICE PERIOD */
+  { p:/availab|notice\s*period|when\s*(can|could)\s*he\s*start|start\s*date|join\s*immediately|ready\s*to\s*join/i,
+    r:["Anirban is available to join immediately! 🟢\n\nNo notice period, no prior commitments — he can start as soon as required. He's fully focused on finding the right Data Analyst or BI Developer role and can be onboarded at your convenience. 📅\n\nContact: anirbanmahanta.2008@gmail.com | WhatsApp: +91 76996 13555"] },
+
+  /* LOCATION / WHERE FROM */
+  { p:/location|where.*based|where.*from|where.*live|city|kolkata|bengal|india|hometown|current.*location|remote|hybrid|relocat/i,
+    r:["Anirban is based in Kolkata, West Bengal, India 📍\n\nTime zone: IST (UTC+5:30)\n🌐 Open to Remote roles globally\n🏢 Open to Hybrid or On-site in Kolkata & nearby areas\n✈️ Open to relocation for the right opportunity\n\nKolkata is a growing tech hub — and Anirban is well-connected and available! 🇮🇳"] },
+
+  /* SOFT SKILLS / TEAMWORK / COMMUNICATION */
+  { p:/soft\s*skill|team.*work|communication|collab|leader|interpersonal|attitude|problem.?solv|work.*style|how.*he.*work/i,
+    r:["Beyond technical skills, Anirban brings:\n\n🗣️ Clear Communication — translates complex data into simple business language\n🤝 Collaboration — comfortable working with cross-functional teams & stakeholders\n🧠 Problem-Solving — approaches data challenges with structured, first-principles thinking\n⏰ Punctual & Reliable — consistent delivery with attention to detail\n📖 Continuous Learner — self-taught across 5+ tools with active certifications\n🎯 Business-Oriented — always ties analysis to real business outcomes\n\nHe's the analyst who bridges the gap between data teams and decision-makers. ✨"] },
+
+  /* WEAKNESS / AREAS OF IMPROVEMENT */
+  { p:/weakness|improve|limitation|lacking|gap|drawback|what\s*(doesn|can't|cannot|he\s*lack)/i,
+    r:["Anirban is honest about his growth areas:\n\n📌 Corporate Experience: As a fresher, he's building formal industry exposure — compensated by 15+ real-world projects\n📌 Cloud Platforms: Currently learning Azure & AWS data services (Synapse, Redshift)\n📌 PL-300 Certification: In progress — expected completion soon\n\nHe approaches every gap as a learning opportunity and has a proven track record of rapidly upskilling. His trajectory is strongly upward. 📈"] },
+
+  /* CERTIFICATIONS */
+  { p:/certif|credential|badge|course|coursera|udemy|microsoft|google\s*data|pl.?300/i,
+    r:["Anirban's certifications:\n\n✅ Google Data Analytics Professional Certificate (2023) — Coursera, 8-course program, Verified\n✅ Python for Data Science & ML Bootcamp — Udemy, Jose Portilla (2022) — Completed\n⏳ Microsoft Power BI Data Analyst (PL-300) — Microsoft Official Path (In Progress)\n\nAll certifications are real, verifiable credentials available on request. 🏅"] },
+
+  /* RESUME / CV / DOWNLOAD */
+  { p:/resume|cv|download|portfolio\s*pdf|biodata|curriculum/i,
+    r:["You can download Anirban's latest resume directly from the portfolio! 📄\n\nClick the ⬇️ Download Resume button in the hero section or the contact section of this page. It's a clean, single-page document covering his skills, projects, education, and contact details.\n\nYou can also reach him at:\n📧 anirbanmahanta.2008@gmail.com\n💼 linkedin.com/in/anirbanmahanta"] },
+
+  /* CONTACT / HOW TO REACH */
+  { p:/contact|reach|email|phone|whatsapp|linkedin|connect|get\s*in\s*touch|how\s*to\s*hire|how\s*do\s*i\s*(hire|contact)/i,
+    r:["Here's how to reach Anirban:\n\n📧 Email: anirbanmahanta.2008@gmail.com\n💬 WhatsApp: +91 76996 13555 (click the green button on this page!)\n💼 LinkedIn: linkedin.com/in/anirbanmahanta\n🐙 GitHub: github.com/anirbanmahanta\n📊 Tableau Public: public.tableau.com/anirbanmahanta\n\nHe responds within 24 hours. For urgent hiring needs, WhatsApp is the fastest way! ⚡"] },
+
+  /* GITHUB / CODE */
+  { p:/github|code|repository|repo|open\s*source|git|version\s*control/i,
+    r:["Anirban's GitHub (github.com/anirbanmahanta) showcases:\n\n🐍 Python analytics scripts & Jupyter notebooks\n📊 SQL query collections & data models\n🤖 ML projects with full documentation\n🌐 Streamlit app code (Customer Churn Predictor)\n\nAll code is cleanly commented and follows best practices — a great indicator of his engineering mindset alongside analytics skills. 💻"] },
+
+  /* WHY HIRE / WHY ANIRBAN */
+  { p:/why.*hire|why.*anirban|what.*makes.*him|stand.*out|unique|differenti|best\s*fit|value.*add|roi|return/i,
+    r:["Why hire Anirban? Here's the case:\n\n🎯 Full-Stack Analytics: He covers the entire pipeline — SQL → Python → Power BI/Tableau — no hand-offs needed\n📊 15+ Real Projects: Proven delivery, not just theoretical knowledge\n🧠 Statistics Foundation: B.Sc. Statistics means he truly understands the 'why' behind data\n⚡ Immediate Availability: Zero notice period, ready to contribute from day one\n💡 Business Mindset: Ties every analysis to business outcomes, not just numbers\n🚀 Fast Learner: Self-taught across 5+ tools in under 3 years\n\nHe's the rare fresher who thinks like an experienced analyst. 🌟"] },
+
+  /* TOOLS / TECH STACK */
+  { p:/tool|tech\s*stack|technology|software|platform|what.*he\s*use|stack/i,
+    r:["Anirban's full tech stack:\n\n📊 BI Tools: Power BI (Desktop, Service), Tableau Desktop & Public, Google Looker Studio\n📋 Excel: Advanced Excel (Dashboards, VBA, Power Query)\n🗄️ Databases: MySQL, PostgreSQL, Google BigQuery, SQLite\n🐍 Python: Pandas, NumPy, Matplotlib, Seaborn, Plotly, Scikit-learn, XGBoost, Streamlit\n☁️ Cloud: Google BigQuery, learning Azure Synapse\n🔧 Other: Git & GitHub, Jupyter Notebook, ETL/Web Scraping\n\nA comprehensive, industry-relevant stack for modern analytics. ✅"] },
+
+  /* CURRENTLY LEARNING */
+  { p:/learn|current.*study|upskill|growing|what.*he.*learn|improving|next\s*goal|future/i,
+    r:["Anirban is actively upskilling in:\n\n⚡ Microsoft PL-300 (Power BI Certification) — in progress\n☁️ Azure Data Services (Synapse Analytics, Data Factory)\n🤖 Advanced ML — deep learning fundamentals with TensorFlow\n🌐 dbt (data build tool) — modern data transformation\n📊 Google BigQuery Advanced — cloud-scale SQL analytics\n\nHe dedicates 2+ hours daily to learning. His growth trajectory is steep and consistent. 📈"] },
+
+  /* FUN FACT / SURPRISE / RANDOM */
+  { p:/surprise|random|fun\s*fact|impress\s*me|wow\s*me|something\s*interest|tell\s*me\s*something/i,
+    r:["Here's a fun fact about Anirban! 🎉\n\nHe built a complete IPL Cricket Analytics dashboard covering 12 seasons of data using Python (Selenium for scraping) + Tableau — just for fun! 🏏 The dashboard tracks batting averages, bowling economy, win probabilities, and player performance trends across every IPL season.\n\nAlso: he scored First Class in B.Sc. Statistics while simultaneously building 5+ data projects in his final year. Dedication personified! 🚀",
+       "🤯 Fun fact: Anirban's Customer Churn Prediction ML model achieved 88% recall — meaning it correctly identifies 88 out of every 100 customers likely to churn. That's production-grade accuracy for a portfolio project!\n\nHe deployed it as a live Streamlit web app so recruiters and clients can test it themselves. That's the kind of extra mile that makes him stand out. ⭐",
+       "Did you know? Anirban's first-ever data project was an air quality analysis of Kolkata — he scraped real pollution data, cleaned it with Python, and visualised it with Matplotlib, all before completing his degree! 🌬️📊\n\nThat curiosity-driven approach is exactly what makes a great analyst."] },
+
+  /* REMOTE WORK */
+  { p:/remote|work\s*from\s*home|wfh|online|virtual|distributed\s*team/i,
+    r:["Yes! Anirban is fully comfortable with remote work. 🌐\n\nHe has:\n✅ A dedicated home setup for focused work\n✅ Experience collaborating asynchronously on long-term projects\n✅ Familiarity with tools like GitHub, Notion, Google Workspace\n✅ IST timezone (UTC+5:30) — good overlap with both European afternoons and US mornings\n\nRemote-first or hybrid — he adapts seamlessly. 💻"] },
+
+  /* THANKS / GOODBYE */
+  { p:/thank|thanks|thx|great|awesome|perfect|bye|goodbye|see\s*you|take\s*care/i,
+    r:["You're welcome! 😊 Feel free to ask anything else. Anirban would love to connect — reach out at anirbanmahanta.2008@gmail.com or WhatsApp +91 76996 13555. Best of luck! 🌟",
+       "Happy to help! 🙌 If you'd like to explore more, check out the Skills, Projects, and Contact sections on this page. Have a great day! ☀️"] },
+];
+
+/* ── Suggested Quick Questions ── */
+const SUGGESTIONS = [
+  "Tell me about Anirban",
+  "What are his top skills?",
+  "Show me his projects",
+  "Is he available to hire?",
+  "What's his education?",
+  "Why should we hire him?",
+  "How to contact him?"
+];
+
+/* ── Smart Response Engine ── */
+function getAIReply(input){
+  const q = input.toLowerCase().trim();
+  for(const entry of KB){
+    if(entry.p.test(q)){
+      const responses = entry.r;
+      return responses[Math.floor(Math.random()*responses.length)];
+    }
+  }
+  // Fallback smart responses
+  const fallbacks = [
+    "Great question! I may not have a specific answer for that, but Anirban would love to answer it personally. 📧 Email: anirbanmahanta.2008@gmail.com | 💬 WhatsApp: +91 76996 13555\n\nYou can also try asking about: his skills, projects, education, availability, or why to hire him!",
+    "I didn't quite catch that one 😅 — but I'm great at answering questions about Anirban's skills, projects, education, and hiring availability. Try one of the suggested questions below! 👇",
+    "That's beyond what I know right now! For anything specific, contact Anirban directly:\n📧 anirbanmahanta.2008@gmail.com\n💼 linkedin.com/in/anirbanmahanta\n\nOr ask me: 'What are his skills?' or 'Tell me about his projects!'"
+  ];
+  return fallbacks[Math.floor(Math.random()*fallbacks.length)];
+}
+
+/* ── Chat UI Functions ── */
+let faiMsgCount = 0;
+
 function toggleFloatAI(){
   faiOpen=!faiOpen;
   const panel=document.getElementById('floatAIPanel');
   const icon=document.getElementById('floatAIBtnIcon');
-  if(faiOpen){ panel.classList.add('open'); icon.textContent='✕'; }
-  else{ panel.classList.remove('open'); icon.textContent='✦'; }
+  const notif=document.getElementById('faiNotif');
+  if(faiOpen){
+    panel.classList.add('open');
+    icon.textContent='✕';
+    if(notif) notif.style.display='none';
+  } else {
+    panel.classList.remove('open');
+    icon.textContent='✦';
+  }
 }
-function appendFAI(txt,cls){
+
+function appendFAI(txt, cls){
   const box=document.getElementById('faiMsgs');
   const el=document.createElement('div');
-  el.className='fai-'+cls; el.textContent=txt;
-  box.appendChild(el); box.scrollTop=99999;
+  el.className='fai-'+cls;
+  // Render line breaks
+  el.style.whiteSpace='pre-line';
+  el.textContent=txt;
+  box.appendChild(el);
+  box.scrollTop=99999;
   return el;
 }
-async function sendFAI(){
+
+function renderSuggestions(){
+  const box=document.getElementById('faiMsgs');
+  const wrap=document.createElement('div');
+  wrap.className='fai-suggestions';
+  wrap.id='faiSuggest';
+  SUGGESTIONS.forEach(s=>{
+    const btn=document.createElement('button');
+    btn.className='fai-suggest-btn';
+    btn.textContent=s;
+    btn.onclick=()=>{
+      document.getElementById('faiSuggest') && document.getElementById('faiSuggest').remove();
+      sendFAIText(s);
+    };
+    wrap.appendChild(btn);
+  });
+  box.appendChild(wrap);
+  box.scrollTop=99999;
+}
+
+function sendFAIText(txt){
+  const box=document.getElementById('faiMsgs');
+  appendFAI(txt,'usr');
+  // Remove old suggestions if still there
+  const old=document.getElementById('faiSuggest');
+  if(old) old.remove();
+  // Typing indicator
+  const typing=appendFAI('typing…','bot fai-typ');
+  setTimeout(()=>{
+    typing.remove();
+    const reply=getAIReply(txt);
+    appendFAI(reply,'bot');
+    faiMsgCount++;
+    // Show suggestions again after every 3rd exchange
+    if(faiMsgCount%3===0) renderSuggestions();
+    box.scrollTop=99999;
+  }, 600 + Math.random()*400);
+}
+
+function sendFAI(){
   const inp=document.getElementById('faiInp');
-  const btn=document.getElementById('faiSend');
   const txt=inp.value.trim();
   if(!txt) return;
-  appendFAI(txt,'usr');
-  inp.value=''; btn.disabled=true;
-  const loading=appendFAI('Thinking…','bot fai-typ');
-  faiHistory.push({role:'user',content:txt});
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,system:FAI_SYS,messages:faiHistory})
-    });
-    const data=await res.json();
-    const reply=data.content?.[0]?.text||"Sorry, I couldn't respond. Please try again.";
-    loading.textContent=reply; loading.className='fai-bot';
-    faiHistory.push({role:'assistant',content:reply});
-  }catch{
-    loading.textContent="Network error. Please try again."; loading.className='fai-bot';
-  }
-  btn.disabled=false;
-  document.getElementById('faiMsgs').scrollTop=99999;
+  inp.value='';
+  // Remove suggestions on manual send
+  const old=document.getElementById('faiSuggest');
+  if(old) old.remove();
+  sendFAIText(txt);
 }
+
 document.getElementById('faiInp').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendFAI();}
 });
+
+/* ── Auto-open greeting after 3s with notification dot ── */
+setTimeout(()=>{
+  const notif=document.getElementById('faiNotif');
+  if(notif && !faiOpen) notif.style.display='flex';
+}, 3000);
+/* ── Render initial suggestions ── */
+setTimeout(()=>{ renderSuggestions(); }, 100);
 </script>
 </body>
 </html>
